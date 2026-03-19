@@ -1,0 +1,21 @@
+name = "Proofs"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["Proofs"]
+
+[leanOptions]
+pp.unicode.fun = true
+relaxedAutoImplicit = false
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.28.0"
+
+[[require]]
+name = "repl"
+git = "https://github.com/leanprover-community/repl"
+rev = "v4.28.0"  # Match your Lean version
+
+[[lean_lib]]
+name = "Proofs"

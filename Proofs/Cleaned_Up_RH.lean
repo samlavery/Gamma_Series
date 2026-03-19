@@ -451,74 +451,11 @@ theorem non_trivial_zeros_in_strip (s : ℂ) (h_zero : riemannZeta s = 0) (h_not
       · exact absurd h_zero <| by exact riemannZeta_ne_zero_of_one_le_re h_real_part;
       · constructor <;> linarith
 
+
 /-
 Theorem: RH is equivalent to FaithfulReconstruction for zeros in the strip. Proof uses the fact that non-trivial zeros are in the strip.
 -/
 theorem rh_iff_faithful :
-  (∀ s, riemannZeta s = 0 → 0 < s.re ∧ s.re < 1 → FaithfulReconstruction s.re) ↔ RiemannHypothesis := by
-    exact rh_equivalent_to_faithful_reconstruction
-
-/-
-Definition of BridgeProperty. Theorem: BridgeProperty implies RH. Proof uses scaling sequence.
--/
-def BridgeProperty : Prop := ∀ s : ℂ, riemannZeta s = 0 → 0 < s.re ∧ s.re < 1 → riemannZeta (2 * s.re * s) = 0
-
-theorem bridge_implies_rh (h_bridge : BridgeProperty) : RiemannHypothesis := by
-  rw [RiemannHypothesis]
-  intro s h_zero h_not_trivial h_ne_one
-  -- We assume non-trivial zeros are in the strip
-  have h_strip : 0 < s.re ∧ s.re < 1 := non_trivial_zeros_in_strip s h_zero h_not_trivial h_ne_one
-  by_contra h_ne_half
-  -- Construct the scaling sequence
-  have h_seq_zero : ∀ n, riemannZeta (s_seq s n) = 0 := by
-    intro n
-    induction' n with n ih
-    · exact h_zero
-    · rw [s_seq]
-      apply h_bridge (s_seq s n) ih
-      -- We need to show s_seq s n is in the strip?
-      -- Actually, scaling_sequence_contradiction doesn't require the sequence to stay in the strip.
-      -- It just derives a contradiction from the sequence existing and being zeros.
-      -- But wait, h_bridge requires the input to be in the strip.
-      -- So we DO need to show s_seq s n is in the strip for all n.
-      -- This might be false if it diverges.
-      -- But if it diverges, we get a contradiction anyway (zeta != 0).
-      -- So if h_bridge holds, the sequence must stay in the strip?
-      -- Or h_bridge only applies if it's in the strip.
-      -- By the induction hypothesis, we know that $0 < (s_seq s n).re < 1$.
-      apply non_trivial_zeros_in_strip (s_seq s n) ih (by
-      have h_seq_pos : ∀ n, 0 < (s_seq s n).re := by
-        intro n; induction n <;> simp_all +decide [ s_seq ] ;
-      exact fun ⟨ k, hk ⟩ => by have := h_seq_pos n; norm_num [ hk ] at this; linarith;) (by
-      intro h; have := ih; norm_num [ h ] at this;
-      exact absurd this <| by exact riemannZeta_one_ne_zero;)
-  -- If we can construct the sequence, we get False.
-  exact scaling_sequence_contradiction s h_seq_zero h_strip.1 h_ne_half
-
-/-
-Theorem: RH is equivalent to FaithfulReconstruction for zeros in the strip. Proof uses the fact that non-trivial zeros are in the strip.
--/
-theorem rh_iff_faithful_reconstruction :
-  (∀ s, riemannZeta s = 0 → 0 < s.re ∧ s.re < 1 → FaithfulReconstruction s.re) ↔ RiemannHypothesis := by
-    exact rh_equivalent_to_faithful_reconstruction
-
-/-
-Theorem: BridgeProperty is equivalent to RH.
--/
-theorem bridge_iff_rh : BridgeProperty ↔ RiemannHypothesis := by
-  constructor <;> intro h;
-  · exact bridge_implies_rh h;
-  · intro s hs hs';
-    contrapose! h;
-    unfold RiemannHypothesis;
-    push_neg;
-    refine' ⟨ s, hs, _, _, _ ⟩ <;> intro H <;> simp_all +decide [ Complex.ext_iff ];
-    intros; linarith;
-
-/-
-Theorem: RH is equivalent to FaithfulReconstruction for zeros in the strip. Proof uses the fact that non-trivial zeros are in the strip.
--/
-theorem rh_iff_faithful_reconstruction_v2 :
   (∀ s, riemannZeta s = 0 → 0 < s.re ∧ s.re < 1 → FaithfulReconstruction s.re) ↔ RiemannHypothesis := by
   rw [RiemannHypothesis]
   constructor
@@ -542,6 +479,95 @@ theorem rh_iff_faithful_reconstruction_v2 :
       have h_re_one : s.re = 1 := by rw [h_eq]; simp
       linarith [h_strip.2, h_re_one]
 
+/-
+Definition of BridgeProperty. Theorem: BridgeProperty implies RH. Proof uses scaling sequence.
+-/
+def BridgeProperty : Prop := ∀ s : ℂ, riemannZeta s = 0 → 0 < s.re ∧ s.re < 1 → riemannZeta (2 * s.re * s) = 0
+
+
+theorem bridge_implies_rh (h_bridge : BridgeProperty) : RiemannHypothesis := by
+  rw [RiemannHypothesis]
+  intro s h_zero h_not_trivial h_ne_one
+  have h_strip : 0 < s.re ∧ s.re < 1 :=
+    non_trivial_zeros_in_strip s h_zero h_not_trivial h_ne_one
+  by_contra h_ne_half
+
+  let P : ℕ → Prop := fun n =>
+    riemannZeta (s_seq s n) = 0 ∧
+    0 < (s_seq s n).re ∧
+    (s_seq s n).re < 1
+
+  have hP : ∀ n, P n := by
+    intro n
+    induction' n with n ihn
+    · exact ⟨h_zero, h_strip.1, h_strip.2⟩
+    · rcases ihn with ⟨hz, hpos, hlt⟩
+
+      have hz' : riemannZeta (s_seq s (n + 1)) = 0 := by
+        rw [s_seq]
+        exact h_bridge (s_seq s n) hz ⟨hpos, hlt⟩
+
+      have h_not_trivial' : ¬ ∃ k : ℕ, s_seq s (n + 1) = -2 * ((k : ℂ) + 1) := by
+        intro htriv
+        rcases htriv with ⟨k, hk⟩
+        have h_re : (s_seq s (n + 1)).re = -2 * (k + 1) := by
+          rw [hk]
+          simp
+        -- It is enough to know Re(s_{n+1}) > 0.
+        have h_pos' : 0 < (s_seq s (n + 1)).re := by
+          -- This should follow from the definition of s_seq and hpos.
+          -- If needed, replace with a dedicated lemma about the real-part recurrence.
+          rw [s_seq]
+          simp [Complex.mul_re, hpos.le]
+          nlinarith
+        linarith
+
+      have h_ne_one' : s_seq s (n + 1) ≠ 1 := by
+        intro h1
+        have : riemannZeta (1 : ℂ) = 0 := by
+          simpa [h1] using hz'
+        exact riemannZeta_one_ne_zero this
+
+      have h_strip' : 0 < (s_seq s (n + 1)).re ∧ (s_seq s (n + 1)).re < 1 :=
+        non_trivial_zeros_in_strip (s_seq s (n + 1)) hz' h_not_trivial' h_ne_one'
+
+      exact ⟨hz', h_strip'.1, h_strip'.2⟩
+
+  have h_seq_zero : ∀ n, riemannZeta (s_seq s n) = 0 := by
+    intro n
+    exact (hP n).1
+
+  exact scaling_sequence_contradiction s h_seq_zero h_strip.1 h_ne_half
+
+
+theorem rh_implies_bridge (h : RiemannHypothesis) : BridgeProperty := by
+  intro s hs hstrip
+  have h_not_trivial : ¬ ∃ n : ℕ, s = -2 * ((n : ℂ) + 1) := by
+    intro htriv
+    rcases htriv with ⟨n, hn⟩
+    have : s.re = -2 * (n + 1) := by
+      rw [hn]
+      simp
+    linarith [hstrip.1]
+  have h_ne_one : s ≠ 1 := by
+    intro h1
+    have : s.re = 1 := by rw [h1]; simp
+    linarith [hstrip.2]
+  have hre : s.re = 1 / 2 := h s hs h_not_trivial h_ne_one
+  simpa [hre] using hs
+
+
+
+
+/-
+Theorem: BridgeProperty is equivalent to RH.
+-/
+theorem bridge_iff_rh : BridgeProperty ↔ RiemannHypothesis := by
+  constructor
+  · intro h
+    exact bridge_implies_rh h
+  · intro h
+    exact rh_implies_bridge h
 
 #check RiemannHypothesis
 #check FaithfulReconstruction
@@ -554,4 +580,7 @@ theorem rh_iff_faithful_reconstruction_v2 :
 #check rh_equivalent_to_faithful_reconstruction
 #check bridge_implies_rh
 #check bridge_iff_rh
-#check rh_iff_faithful_reconstruction_v2
+#print axioms bridge_iff_rh
+#print axioms bridge_implies_rh
+#print BridgeProperty
+#print RiemannHypothesis
